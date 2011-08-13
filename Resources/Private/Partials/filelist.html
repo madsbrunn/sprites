@@ -1,0 +1,20 @@
+{namespace spr=Tx_Sprites_ViewHelpers}
+<table id="typo3-filelist" cellspacing="0" cellpadding="0">
+	<tr class="t3-row-header">
+		<td>&nbsp;</td>
+		<td nowrap="nowrap" class="">Filename</td>
+		<td nowrap="nowrap" class="">Path</td>
+		<td nowrap="nowrap" class="">Date</td>
+		<td nowrap="nowrap" class="">Size</td>
+	</tr>
+	<f:for each="{files}" as="file">
+		<tr>
+			<td><f:form.checkbox name="files[]" value="{file.abspath}" /></td>
+			<td>{file.name}</td>
+			<td>{file.dirname}</td>
+			<td><f:format.date format="d-m-Y">@{file.lastchanged}</f:format.date></td>
+			<td><spr:format.size labels=" | KB| MB| GB">{file.size}</spr:format.size></td>
+		</tr>
+	</f:for>
+</table>
+

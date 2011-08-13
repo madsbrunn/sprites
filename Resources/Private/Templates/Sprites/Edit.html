@@ -1,0 +1,12 @@
+{namespace spr=Tx_Sprites_ViewHelpers}
+
+<f:layout name="module" />
+
+<f:section name="main">
+
+<f:form action="save" addQueryString="1">
+	<f:form.textarea name="config" rows="10" cols="80" value="{config}" /><br />
+	<f:form.submit value="Save" />
+</f:form>
+
+</f:section>

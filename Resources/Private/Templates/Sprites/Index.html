@@ -1,0 +1,9 @@
+{namespace spr=Tx_Sprites_ViewHelpers}
+<f:layout name="module" />
+<f:section name="main">
+<f:form action="generate">
+	<f:render partial="filelist" arguments="{files:files}" />
+	<f:form.hidden name="path" value="{arguments.path}" />
+	<f:form.submit value="Generate sprite" />
+</f:form>
+</f:section>

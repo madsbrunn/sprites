@@ -1,0 +1,2 @@
+# cat=basic; type=boolean; label=Debug mode: Enabling this will result in a lot of calls to t3lib_div::devLog(). Only for debugging purposes since it will flood the log with all sorts of crap
+debugMode = 0

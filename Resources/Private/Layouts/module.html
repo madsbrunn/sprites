@@ -1,0 +1,47 @@
+{namespace spr=Tx_Sprites_ViewHelpers}
+<f:be.container 
+	pageTitle="Sprites" 
+	enableJumpToUrl="true" 
+	enableClickMenu="false" 
+	loadPrototype="false" 
+	loadScriptaculous="false" 
+	loadExtJs="true" 
+	loadExtJsTheme="true" 
+	extJsAdapter="jQuery" 
+	addJsFile="{f:uri.resource('js/sprites.js')}"
+>
+	<div class="typo3-fullDoc">
+		<div id="typo3-docheader">
+			<div id="typo3-docheader-row1">
+				<div class="buttonsleft">&nbsp;</div>
+				<div class="buttonsright">
+					<f:link.action arguments="{path:arguments.path}"><spr:be.spriteicon icon="actions-system-refresh" /></f:link.action>
+					<f:if condition="{isMount}">
+						<f:link.action arguments="{path:parent}"><spr:be.spriteicon icon="actions-view-go-up" /></f:link.action>
+					</f:if>
+					<f:be.buttons.shortcut />
+				</div>
+			</div>
+			<div id="typo3-docheader-row2">
+				<div class="docheader-row2-left">
+					<f:be.buttons.csh table="_MOD_txspritesM1" iconOnly="1" />
+					<div class="docheader-funcmenu">
+						<f:be.menus.actionMenu>
+							<f:be.menus.actionMenuItem label="Files" controller="Sprites" action="index" arguments="{path:arguments.path}" />
+							<f:be.menus.actionMenuItem label="Configuration" controller="Sprites" action="edit" arguments="{path:arguments.path}"  />
+						</f:be.menus.actionMenu>
+					</div>
+				</div>
+				<div class="docheader-row2-right"><spr:be.blindpath path="{arguments.path}" /></div>
+			</div>		
+		</div>
+		<div id="typo3-docbody">
+			<div id="typo3-inner-docbody">
+				<f:flashMessages renderMode="div" />
+				<f:render section="main" />
+			</div>
+		</div>
+	</div>
+</f:be.container>
+
+

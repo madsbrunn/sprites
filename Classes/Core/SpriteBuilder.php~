@@ -48,6 +48,9 @@ class Tx_Sprites_Core_SpriteBuilder{
 		//$sprite->init();
 		//$sprite->build();
 		
+		$ressources = array();
+		
+		
 		foreach($this->files as $k => $file){
 			
 			
@@ -120,33 +123,36 @@ class Tx_Sprites_Core_SpriteBuilder{
 	}	
 	
 	
-	public function getRealPath($relative,$absolute){
-	
-		if(strstr($relative,'://')){
-			//don't handle non-local images
-			return false;			
-		}
+	/**
+	 * 	Converts relative file path to an absolute path
+	 *	
+	 *	handles the following relative paths
+	 *
+	 * 	image.jpg
+	 *	img/image.jpg
+	 *	../image.jpg
+	 *	../img/images.jpg
+	 *	/fileadmin/templates/img/image.jpg
+	 *	http://www.example.com/path/image.jpg
+	 *	
+	 *
+	 */
+	 /*
+	protected function getAbsPath($rel,$abs){
+
+		$rel = trim($rel);
+		$abs = trim($abs);
 		
-		if($relative{0} == '/'){ 
-			//prepend site's path
-			$relative = PATH_site . substr($relative,1);			   
-		}
-	
-		$cwd = getcwd();
-		$absdir = dirname($absolute);
-		chdir($absdir);
-		$realpath = realpath($relative);
-		chdir($cwd);
+		$p = parse_url($rel);
+		$basefolder = dirname($abs);
+
+		if($p['scheme']) return $rel;
 		
-		if(TX_SPRITES_DEBUG){
-			$debuginfo = array();
-			$debuginfo['relative_url'] = $relative;
-			$debuginfo['absolute_url'] = $absolute;
-			$debuginfo['resolved_url'] = $realpath;
-			t3lib_div::devLog('Resolved URL','sprites',t3lib_div::SYSLOG_SEVERITY_INFO,$debuginfo);
+		if($relative{0} == '/') {
+			
 		}
-		return $realpath;
-	}	
+          * 
+	}*/
 	
 	
 	
@@ -220,37 +226,35 @@ class Tx_Sprites_Core_SpriteBuilder{
 		);
 	}
 
+        protected function makeImage(){
+
+            $image = t3lib_div::makeInstance('t3lib_stdGraphic');
+            $image->init();
+
+        }
         
         
-	function processRule($match,$image,$spriteref,$directives,$file){
-		
+        function processRule($match,$image,$spriteref,$directives,$file){
 		if(TX_SPRITES_DEBUG){
 			t3lib_div::devLog('Process rule','sprites',t3lib_div::SYSLOG_SEVERITY_INFO,func_get_args());					
 		}
-	
+		
 		if(!isset($this->conf['sprites'][$spriteref])){		
 			t3lib_div::devLog("Sprite '$spriteref' not defined - skipping image",'sprites',t3lib_div::SYSLOG_SEVERITY_WARNING,func_get_args());
-			return $match;
+			continue;
 		}
-		
-		
-		$path = $this->getRealPath($image,$file);
-		if(!$path){
-			t3lib_div::devLog("Couldn't find image '$image' - skipping",'sprites',t3lib_div::SYSLOG_SEVERITY_WARNING,func_get_args());
-			return $match;			
-		}
-		
-		
 		$directives = $this->parseDirectives($directives);
-	
+		$path = $this->getSiteRelPath($image,$file);
+		
 		if(!isset($this->sprites[$spriteref])){
 			$this->sprites[$spriteref] = t3lib_div::makeInstance('Tx_Sprites_Utility_Sprite');
 			$this->sprites[$spriteref]->init($spriteref,$this->conf['sprites'][$spriteref]);
 		}
 		$key = $this->sprites[$spriteref]->registerImage($path,$directives,$match);
-	
+		
 		return $key;
-	}
+		
+        }
 }
 
 

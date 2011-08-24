@@ -49,37 +49,11 @@ class Tx_Sprites_Core_SpriteBuilder{
 		//$sprite->build();
 		
 		foreach($this->files as $k => $file){
-			
-			
 			$this->files[$k]['orig_content'] = t3lib_div::getURL($file['path']);
 			
 			$pattern = '/background-image\s*:\s*url\((.*)\)\s*;\s*\/\*\*\s+sprite-ref:\s*([a-z0-9]+);(.*)\*\//ime';	
 			$replace = '$this->processRule("$0","$1","$2","$3","'.$file['path'].'")';
 			$this->files[$k]['new_content'] = preg_replace($pattern,$replace,$this->files[$k]['orig_content']);
-			
-			
-			/*
-			if($backgroundimages = $this->extractAnnotatedBackgroundImageRules($content)){	
-				if(TX_SPRITES_DEBUG){
-					t3lib_div::devLog('Found '.count($backgroundimages).' annotated background images in file '.$file,'sprites',t3lib_div::SYSLOG_SEVERITY_INFO,$backgroundimages);
-				}
-				
-				foreach($backgroundimages as $data){
-					$spriteref = $data[TX_SPRITE_REF_INDEX][0];
-					if(!isset($this->conf['sprites'][$spriteref])){		
-						t3lib_div::devLog("Sprite '$spriteref' not defined - skipping image",'sprites',t3lib_div::SYSLOG_SEVERITY_WARNING,$backgroundimage);
-						continue;
-					}
-					$directives = $this->parseDirectives($data[TX_SPRITE_DIRECTIVES_INDEX][0]);
-					$path = $this->getSiteRelPath($data[TX_SPRITE_IMAGE_PATH_INDEX][0],$file);
-					
-					if(!isset($this->sprites[$spriteref])){
-						$this->sprites[$spriteref] = t3lib_div::makeInstance('Tx_Sprites_Utility_Sprite');
-						$this->sprites[$spriteref]->init($spriteref,$this->conf['sprites'][$spriteref]);
-					}
-					$this->sprites[$spriteref]->addImage($path,$directives);
-				}
-			}*/
 		}
 		
 		if(TX_SPRITES_DEBUG){
@@ -210,17 +184,6 @@ class Tx_Sprites_Core_SpriteBuilder{
 	}	
 	
 	
-	protected function addImageToSprite($imagepath,$spriteref,$directives){
-		list($width,$height) = getimagesize('/'.$imagepath);
-		$this->sprites[$spriteref]['images'][] = array(
-			'file' => $imagepath,
-			'width' => $width,
-			'height' => $height,
-			'directives' => $directives
-		);
-	}
-
-        
         
 	function processRule($match,$image,$spriteref,$directives,$file){
 		
@@ -247,7 +210,7 @@ class Tx_Sprites_Core_SpriteBuilder{
 			$this->sprites[$spriteref] = t3lib_div::makeInstance('Tx_Sprites_Utility_Sprite');
 			$this->sprites[$spriteref]->init($spriteref,$this->conf['sprites'][$spriteref]);
 		}
-		$key = $this->sprites[$spriteref]->registerImage($path,$directives,$match);
+		$key = $this->sprites[$spriteref]->addImage($path,$directives,$match);
 	
 		return $key;
 	}

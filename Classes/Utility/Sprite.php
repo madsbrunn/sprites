@@ -23,7 +23,32 @@ class Tx_Sprites_Utility_Sprite extends t3lib_stdGraphic{
 		
 		$this->im = imagecreatetruecolor($this->w,$this->h);
 		
+		$reg = array();
+		preg_match('/([^\.]*)$/', $this->conf['file'], $reg);
+		$ext = strtolower($reg[0]);
+
+		if ($ext !='jpg') {
+			
+			imagealphablending($this->im,false);
+			imagesavealpha($this->im,true);
+			$transparent = imagecolorallocatealpha($this->im,255, 255, 255, 127);
+			imagecolortransparent($this->im,$transparent);
+			imagefilledrectangle($this->im, 0, 0, $this->w, $this->h, $transparent);
+			
+		} else {
+			
+			$transparent = imagecolorallocate($this->im,255, 255, 255);	// white
+			imagefilledrectangle($this->im, 0, 0, $this->w, $this->h, $transparent);
+			
+		}		
+		
+		
+		//list($red,$green,$blue) = $this->convertColor('#ffffff');
+		//$bgcolor = imagecolorallocate($this->im, $red, $green, $blue);
+		//imagefilledrectangle($this->im, 0, 0, $this->w, $this->h, $bgcolor);		
+		
 		foreach($this->images as $key => $image){
+			
 			$this->copyImageOntoImage($this->im,$image,$this->workArea);
 			
 			list($x,$y,$w,$h) = $this->workArea;
@@ -46,50 +71,11 @@ class Tx_Sprites_Utility_Sprite extends t3lib_stdGraphic{
 
 
 	function build(){
-		
-		//$this->setWorkArea('0,0');
-		//$this->im = imagecreatetruecolor($this->w,$this->h);
-		//list($red,$green,$blue) = $this->convertColor('#eeeeee');
-		//$bgcolor = ImageColorAllocate($this->im, $red,$green,$blue);
-		//ImageFilledRectangle($this->im, 0, 0, $this->w, $this->h, $bgcolor);
-		
-		//$img2 = $this->imageCreateFromFile(PATH_site . 'fileadmin/templates/main/images/logo.png');
-		//$this->copyGifOntoGif($this->im, $img2, array('tile'=>'1,1'), array(20,20));
-		//imagedestroy($img2);
-		
 		$this->output(PATH_site . $this->conf['file']);
 	}
 	
 	
-	/**
-	 * Adds an image to the sprite
-	 */
-	function addImage($file,$directives){
-		
-		if(!is_file($file)){
-			t3lib_div::devLog('File "'.$file.'" did not exist','sprites',t3lib_div::SYSLOG_SEVERITY_WARNING);
-			return;
-		}
-		
-		$fileinfo = $this->getImageDimensions($file);
-		$image = array(
-			'width' => $fileinfo[0],
-			'height' => $fileinfo[1],
-			'ext' => $fileinfo[2],
-			'file' => $fileinfo[3],
-			'directives' => $directives
-		);
-		
-		$this->images[] = $image;
-		
-		if(TX_SPRITES_DEBUG){
-			t3lib_div::devLog('Added image to sprite "'.$this->id.'"','sprites',t3lib_div::SYSLOG_SEVERITY_INFO,$image);
-		}		
-		
-	}
-	
-	
-	function registerImage($file,$directives,$match){
+	function addImage($file,$directives,$match){
 
 		if(!is_file($file)){
 			t3lib_div::devLog('File "'.$file.'" did not exist','sprites',t3lib_div::SYSLOG_SEVERITY_WARNING);

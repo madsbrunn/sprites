@@ -29,10 +29,6 @@ class Tx_Sprites_Controller_SpritesController extends Tx_Sprites_Controller_Abst
 	public function indexAction(string $path) {
 		
 		
-		
-		
-		
-		
 		$fileArr = t3lib_div::getAllFilesAndFoldersInPath(array(),$path,'css');
 		
 		$files = array();
@@ -82,30 +78,10 @@ class Tx_Sprites_Controller_SpritesController extends Tx_Sprites_Controller_Abst
 	 * @param array $files
 	 */
 	public function generateAction($files){
+		set_time_limit(3000);
 		$conf = $this->getConfiguration();
 		$spriteBuilder = t3lib_div::makeInstance('Tx_Sprites_Core_SpriteBuilder',$files,$conf);
 		$spriteBuilder->buildSprites();
-
-		/*
-		$pathtest = array();
-		
-		$pathtest[] = $spriteBuilder->getSiteRelPath('img.jpg','/var/www/web11/web/fileadmin/templates/css/styles.css');
-		$pathtest[] = $spriteBuilder->getSiteRelPath('../images/img.jpg','/var/www/web11/web/fileadmin/templates/css/styles.css');
-		$pathtest[] = $spriteBuilder->getSiteRelPath('images/img.jpg','/var/www/web11/web/fileadmin/templates/css/styles.css');
-		$pathtest[] = $spriteBuilder->getSiteRelPath('/fileadmin/templates/images/img.jpg','/var/www/web11/web/fileadmin/templates/css/styles.css');
-		$pathtest[] = $spriteBuilder->getSiteRelPath('http://www.brunn.dk/fileadmin/templates/images/img.jpg','/var/www/web11/web/fileadmin/templates/css/styles.css');
-		$pathtest[] = $spriteBuilder->getSiteRelPath('../images/img.jpg','/var/www/web11/web/fileadmin/templates/css/styles.css');
-		
-		
-		print_r($pathtest);
-		die();*/
-		
-		
-		//$this->view->assign('pathtest',$pathtest);
-		
-		
-		//$parser->init($files);
-		//$this->forward('index');		
 	}
 	
 	

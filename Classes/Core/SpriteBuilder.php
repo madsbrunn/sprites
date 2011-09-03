@@ -14,15 +14,21 @@ class Tx_Sprites_Core_SpriteBuilder{
 	
 	function __construct($files,$conf,$sitepath = ''){
 		
+		//ini_set('show_errors',1);
+		
 		//$this->files = $files;
 		
 		
 		foreach($files as $file){
+			
+			$pparts = pathinfo($file);
+			$new_path = $pparts['dirname'].'/'.$pparts['filename'] . ($this->conf['css-file-suffix'] ? $this->conf['css-file-suffix'] : '-sprite') . '.'.$pparts['extension'];
+			
 			$this->files[] = array(
-				'path' => $file 				
+				'orig_path' => $file,
+				'new_path' => $new_path
 			);
 		}
-		
 		
 		$this->conf = $conf;
 		$this->sitepath = $sitepath;
@@ -35,35 +41,24 @@ class Tx_Sprites_Core_SpriteBuilder{
 
 	function buildSprites(){
 		
-		//$stdgfx = t3lib_div::makeInstance('t3lib_stdGraphic');
-		//$stdgfx->init();
-		
-		
-		//$im = imagecreatetruecolor(400,400);
-		//list($red,$green,$blue) = $stdgfx->convertColor('#eeeeee');
-		//$bgcolor = ImageColorAllocate($im, $red,$green,$blue);
-		//ImageFilledRectangle($im, 0, 0, 400, 400, $bgcolor);
-		
-		//$sprite = t3lib_div::makeInstance('Tx_Sprites_Utility_Sprite');
-		//$sprite->init();
-		//$sprite->build();
-		
 		foreach($this->files as $k => $file){
-			$this->files[$k]['orig_content'] = t3lib_div::getURL($file['path']);
+			$this->files[$k]['orig_content'] = t3lib_div::getURL($file['orig_path']);
 			
-			$pattern = '/background-image\s*:\s*url\((.*)\)\s*;\s*\/\*\*\s+sprite-ref:\s*([a-z0-9]+);(.*)\*\//ime';	
-			$replace = '$this->processRule("$0","$1","$2","$3","'.$file['path'].'")';
-			$this->files[$k]['new_content'] = preg_replace($pattern,$replace,$this->files[$k]['orig_content']);
-		}
-		
-		if(TX_SPRITES_DEBUG){
-			t3lib_div::devLog('Extracted content from css-files and processed rules','sprites',t3lib_div::SYSLOG_SEVERITY_INFO,$this->files);
-			ob_start();
-			var_dump($this->sprites);
-			$sprites = ob_get_contents();
-			ob_end_clean();
+			$pattern1 = '/background-image\s*:\s*url\((.*)\)\s*;\s*\/\*\*\s+sprite-ref:\s*([a-z0-9]+);(.*)\*\//ime';	
+			$replace1 = '$this->processBackgroundImageRule("$0","$1","$2","$3","'.$file['orig_path'].'")';
 			
-			t3lib_div::devLog('Finished analyzing css files','sprites',t3lib_div::SYSLOG_SEVERITY_INFO,array($sprites));
+			$new_content = preg_replace($pattern1,$replace1,$this->files[$k]['orig_content']);
+			
+			$pattern2 = '/background\s*:\s*(transparent|(#?(([a-fA-F0-9]){3}){1,2}))?\s*url\((\'|")?(.*)(\'|")?\)\s*(no-repeat|repeat-x|repeat-y)?\s*(scroll|fixed|inherit)?((\s*([0-9]*\s*(%|in|cm|mm|em|ex|pt|pc|px)?)|left|center|right|top|bottom)?((\s*([0-9]*\s*(%|in|cm|mm|em|ex|pt|pc|px)?)|left|center|right|top|bottom))?)?;?\s*\/\*\*\s+sprite-ref:\s*([a-z0-9]+);(.*)\*\//im';
+			$replace2 = '$this->processBackgroundRule("$0","$6","'.$file['orig_path'].'")';
+			
+			if(preg_match_all($pattern2,$new_content,$matches)){
+				t3lib_div::devLog('Process background rule','sprites',t3lib_div::SYSLOG_SEVERITY_INFO,$matches);							
+			}
+			
+			//$new_content = preg_replace($pattern2,$replace2,$new_content);			
+			
+			$this->files[$k]['new_content'] = $new_content;
 		}
 		
 		
@@ -72,7 +67,7 @@ class Tx_Sprites_Core_SpriteBuilder{
 			$sprite->make();		
 		}
 		
-		// now replace placeholders in css files and write sprite'd css files
+		// now replace placeholders in css content
 		foreach($this->files as $k => $file){
 			foreach($this->sprites as $sprite){
 				foreach($sprite->images as $md5 => $image){
@@ -82,18 +77,16 @@ class Tx_Sprites_Core_SpriteBuilder{
 		}
 		
 		if(TX_SPRITES_DEBUG){
-			t3lib_div::devLog('Wrote new css rules to files','sprites',t3lib_div::SYSLOG_SEVERITY_INFO,$this->files);			
+			t3lib_div::devLog('Wrote new css rules to content','sprites',t3lib_div::SYSLOG_SEVERITY_INFO,$this->files);			
 		}
+		
+		//now write new css files
+		foreach($this->files as $k => $file){
+			t3lib_div::writeFile($file['new_path'],$file['new_content']);						
+		}
+		
 	}
 
-	protected function extractAnnotatedBackgroundImageRules($content){
-		$pattern = '/background-image\s*:\s*url\((.*)\)\s*;\s*\/\*\*\s+sprite-ref:\s*([a-z0-9]+);(.*)\*\//im';
-		if(preg_match_all($pattern,$content,$matches,PREG_OFFSET_CAPTURE|PREG_SET_ORDER)){
-			return $matches;
-		}
-	}	
-	
-	
 	public function getRealPath($relative,$absolute){
 	
 		if(strstr($relative,'://')){
@@ -123,57 +116,7 @@ class Tx_Sprites_Core_SpriteBuilder{
 	}	
 	
 	
-	
-	public function getSiteRelPath($relative,$absolute){
-		
-		$p = parse_url($relative);
-		if($p["scheme"])return $relative;
-		extract(parse_url($absolute));
-		$path = dirname($path); 
-		if($relative{0} == '/') {
-				$cparts = array_filter(explode("/", $relative));
-		}
-		else {
-				$aparts = array_filter(explode("/", $path));
-				$rparts = array_filter(explode("/", $relative));
-				$cparts = array_merge($aparts, $rparts);
-				foreach($cparts as $i => $part) {
-						if($part == '.') {
-								$cparts[$i] = null;
-						}
-						if($part == '..') {
-								$cparts[$i - 1] = null;
-								$cparts[$i] = null;
-						}
-				}
-				$cparts = array_filter($cparts);
-		}
-		$path = implode("/", $cparts);
-		$url = "";
-		if($scheme) {
-				$url = "$scheme://";
-		}
-		if($user) {
-				$url .= "$user";
-				if($pass) {
-						$url .= ":$pass";
-				}
-				$url .= "@";
-		}
-		if($host) {
-				$url .= "$host/";
-		}
-		$url .= $path;
-		
-		if($absolute{0} == '/') {
-			$url = '/' . $url;
-		}
-		
-		return $url;
-	}
-	
 	protected function parseDirectives($str){
-		//return preg_split('/.*:.*;/i',trim($str));	
 		$directives = array();
 		$tmp = t3lib_div::trimExplode(';',$str,1);
 		foreach($tmp as $directive){
@@ -183,9 +126,8 @@ class Tx_Sprites_Core_SpriteBuilder{
 		return $directives;
 	}	
 	
-	
         
-	function processRule($match,$image,$spriteref,$directives,$file){
+	function processBackgroundImageRule($match,$image,$spriteref,$directives,$file){
 		
 		if(TX_SPRITES_DEBUG){
 			t3lib_div::devLog('Process rule','sprites',t3lib_div::SYSLOG_SEVERITY_INFO,func_get_args());					
@@ -203,7 +145,6 @@ class Tx_Sprites_Core_SpriteBuilder{
 			return $match;			
 		}
 		
-		
 		$directives = $this->parseDirectives($directives);
 	
 		if(!isset($this->sprites[$spriteref])){
@@ -214,6 +155,12 @@ class Tx_Sprites_Core_SpriteBuilder{
 	
 		return $key;
 	}
+	
+	
+	function processBackgroundRule($match,$image,$file){
+			t3lib_div::devLog('Process background rule','sprites',t3lib_div::SYSLOG_SEVERITY_INFO,func_get_args());			
+	}
+	
 }
 
 

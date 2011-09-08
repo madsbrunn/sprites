@@ -39,17 +39,24 @@ class Tx_Sprites_Utility_Sprite extends t3lib_stdGraphic{
 			list($x,$y,$w,$h) = $this->workArea;
 			
 			$directives = $image['directives'];
+
+			$h_pos = '0';
+			$v_pos = '0';
 			
 			if($this->conf['layout'] == 'vertical'){
 				
-				$halign= 'left';				
+				//$halign= 'left';	
+				$h_pos = 'left';
+				$v_pos = '-'.$y.'px';
+				
 				
 				//calculating  y - coordinate
 				$y_pos = $y+$directives['sprite-margin-top'];
 
 				if($directives['sprite-alignment'] == 'right'){				//right
 					
-					$halign = 'right';
+					//$halign = 'right';
+					$h_pos = 'right';
 					
 					//x - coordinate if the image is aligned to the right edge of the sprite
 					$x_pos = $this->w - $image['width'] - $directives['sprite-margin-right']; 
@@ -72,17 +79,19 @@ class Tx_Sprites_Utility_Sprite extends t3lib_stdGraphic{
 					
 				}
 				
-				$this->images[$key]['cssrules'] = "background-image:url('/".$this->conf['file']."');\n\t";
-				$this->images[$key]['cssrules'] .= "background-position: ".$halign." -".$y."px;";
 				
 			} else {
 				
-				$valign= 'top';				
+				//$valign= 'top';
+				$h_pos = $x.'px';
+				$v_pos = 'top';
+				
 				
 				$x_pos = $x + $directives['sprite-margin-left'];
 				if($directives['sprite-alignment'] == 'bottom'){ 			//bottom
 					
-					$valign = 'bottom';
+					//$valign = 'bottom';
+					$v_pos = 'bottom';
 					$y_pos = $this->h - $image['height'] - $directives['sprite-margin-bottom'];		
 					
 				} elseif($directives['sprite-alignment'] == 'top'){ 	//top
@@ -99,11 +108,21 @@ class Tx_Sprites_Utility_Sprite extends t3lib_stdGraphic{
 					$image['tile'] = implode(',',$tile);
 					
 				}
-
-				$this->images[$key]['cssrules'] = "background-image:url('/".$this->conf['file']."');\n\t";
-				$this->images[$key]['cssrules'] .= "background-position: ".$x."px ".$valign;
-				
 			}
+			
+			//write new rule
+			if($image['type'] == 'background-image'){
+				
+				$this->images[$key]['cssrules'] = "background-image:url('/".$this->conf['file']."');\n\t";
+				$this->images[$key]['cssrules'] .= "background-position: ".$h_pos." ".$v_pos.";";
+				
+			} else {
+				
+				//todo: parse background
+				$pattern = '/background\s*:\s*(transparent|(#?(([a-fA-F0-9]){3}){1,2}))?\s*url\((\'|")?(.*)(\'|")?\)\s*(no-repeat|repeat-x|repeat-y)?\s*(scroll|fixed|inherit)?((\s*([0-9]*\s*(%|in|cm|mm|em|ex|pt|pc|px)?)|left|center|right|top|bottom)?((\s*([0-9]*\s*(%|in|cm|mm|em|ex|pt|pc|px)?)|left|center|right|top|bottom))?)?;?/im';
+
+			}
+			
 			
 			$this->copyImageOntoImage($this->im,$image,array($x_pos,$y_pos,$w,$h));
 			
@@ -128,7 +147,7 @@ class Tx_Sprites_Utility_Sprite extends t3lib_stdGraphic{
 	}
 	
 	
-	function addImage($file,$directives,$match){
+	function addImage($file,$directives,$match,$type){
 
 		if(!is_file($file)){
 			t3lib_div::devLog('File "'.$file.'" did not exist','sprites',t3lib_div::SYSLOG_SEVERITY_WARNING);
@@ -159,7 +178,9 @@ class Tx_Sprites_Utility_Sprite extends t3lib_stdGraphic{
 				'height' => $fileinfo[1],
 				'ext' => $fileinfo[2],
 				'file' => $fileinfo[3],
-				'directives' => $directives
+				'directives' => $directives,
+				'match' => $match,
+				'type' => $type
 			);
 			
 			$this->images[$key] = $image;
@@ -250,8 +271,6 @@ class Tx_Sprites_Utility_Sprite extends t3lib_stdGraphic{
 								$h = $workArea[1] + $workArea[3] - $Ystart;
 							}
 							if ($Ystart < $workArea[1] + $workArea[3]) { // if this image is inside of the workArea, then go on
-								//$this->imagecopyresized($im, $cpImg, $Xstart, $Ystart, $cpImgCutX, $cpImgCutY, $w, $h, $w, $h);
-								
 								// override - we are using imagecopy instead of imagecopyresized in order to preserve alpha transparency
 								imagecopy($im,$cpImg,$Xstart,$Ystart,$cpImgCutX,$cpImgCutY,$w,$h);
 							}

@@ -9,18 +9,11 @@ class Tx_Sprites_Core_SpriteBuilder{
 	
 	private $files = array();
 	private $conf = array();
-	private $sitepath = '';
 	private $sprites = array();
 	
-	function __construct($files,$conf,$sitepath = ''){
-		
-		//ini_set('show_errors',1);
-		
-		//$this->files = $files;
-		
+	function __construct($files,$conf){
 		
 		foreach($files as $file){
-			
 			$pparts = pathinfo($file);
 			$new_path = $pparts['dirname'].'/'.$pparts['filename'] . ($this->conf['css-file-suffix'] ? $this->conf['css-file-suffix'] : '-sprite') . '.'.$pparts['extension'];
 			
@@ -31,7 +24,6 @@ class Tx_Sprites_Core_SpriteBuilder{
 		}
 		
 		$this->conf = $conf;
-		$this->sitepath = $sitepath;
 		
 		if(TX_SPRITES_DEBUG){
 			t3lib_div::devLog('SpriteBuilder constructor arguments','sprites',t3lib_div::SYSLOG_SEVERITY_INFO,func_get_args());
@@ -43,24 +35,10 @@ class Tx_Sprites_Core_SpriteBuilder{
 		
 		foreach($this->files as $k => $file){
 			$this->files[$k]['orig_content'] = t3lib_div::getURL($file['orig_path']);
-			
-			$pattern1 = '/background-image\s*:\s*url\((.*)\)\s*;\s*\/\*\*\s+sprite-ref:\s*([a-z0-9]+);(.*)\*\//ime';	
-			$replace1 = '$this->processBackgroundImageRule("$0","$1","$2","$3","'.$file['orig_path'].'")';
-			
-			$new_content = preg_replace($pattern1,$replace1,$this->files[$k]['orig_content']);
-			
-			$pattern2 = '/background\s*:\s*(transparent|(#?(([a-fA-F0-9]){3}){1,2}))?\s*url\((\'|")?(.*)(\'|")?\)\s*(no-repeat|repeat-x|repeat-y)?\s*(scroll|fixed|inherit)?((\s*([0-9]*\s*(%|in|cm|mm|em|ex|pt|pc|px)?)|left|center|right|top|bottom)?((\s*([0-9]*\s*(%|in|cm|mm|em|ex|pt|pc|px)?)|left|center|right|top|bottom))?)?;?\s*\/\*\*\s+sprite-ref:\s*([a-z0-9]+);(.*)\*\//im';
-			$replace2 = '$this->processBackgroundRule("$0","$6","'.$file['orig_path'].'")';
-			
-			if(preg_match_all($pattern2,$new_content,$matches)){
-				t3lib_div::devLog('Process background rule','sprites',t3lib_div::SYSLOG_SEVERITY_INFO,$matches);							
-			}
-			
-			//$new_content = preg_replace($pattern2,$replace2,$new_content);			
-			
-			$this->files[$k]['new_content'] = $new_content;
+			$pattern = '/(background-image|background)\s*:.*url\((\'|")?(.*)(\'|")?\).*;?\/\*\*\s*sprite-ref:\s*([a-z0-9]+);(.*)\*\//ime';
+			$replace = '$this->processRule("$0","$1","$3","$5","$6","'.$file['orig_path'].'")';
+			$this->files[$k]['new_content'] = preg_replace($pattern,$replace,$this->files[$k]['orig_content']);
 		}
-		
 		
 		// build sprite images 
 		foreach($this->sprites as $sprite){
@@ -82,6 +60,10 @@ class Tx_Sprites_Core_SpriteBuilder{
 		
 		//now write new css files
 		foreach($this->files as $k => $file){
+			if(sha1($file['orig_content']) == sha1($file['new_content'])){
+				t3lib_div::devLog('File "'.$file['orig_path'].'" was not changed so no reason to write','sprites',t3lib_div::SYSLOG_SEVERITY_INFO,$file);				
+			}
+			
 			t3lib_div::writeFile($file['new_path'],$file['new_content']);						
 		}
 		
@@ -126,39 +108,39 @@ class Tx_Sprites_Core_SpriteBuilder{
 		return $directives;
 	}	
 	
-        
-	function processBackgroundImageRule($match,$image,$spriteref,$directives,$file){
+	
+	function processRule($match,$type,$image,$spriteref,$directives,$file){
 		
 		if(TX_SPRITES_DEBUG){
 			t3lib_div::devLog('Process rule','sprites',t3lib_div::SYSLOG_SEVERITY_INFO,func_get_args());					
-		}
-	
-		if(!isset($this->conf['sprites'][$spriteref])){		
-			t3lib_div::devLog("Sprite '$spriteref' not defined - skipping image",'sprites',t3lib_div::SYSLOG_SEVERITY_WARNING,func_get_args());
-			return $match;
-		}
+		}		
 		
-		
-		$path = $this->getRealPath($image,$file);
-		if(!$path){
-			t3lib_div::devLog("Couldn't find image '$image' - skipping",'sprites',t3lib_div::SYSLOG_SEVERITY_WARNING,func_get_args());
+		if(!in_array($type,array('background','background-image'))){
+			t3lib_div::devLog("Invalid argument - must be either 'background' or 'background-image' - skipping rule",'sprites',t3lib_div::SYSLOG_SEVERITY_WARNING,func_get_args());
 			return $match;			
 		}
 		
-		$directives = $this->parseDirectives($directives);
-	
+		if(!isset($this->conf['sprites'][$spriteref])){		
+			t3lib_div::devLog("Sprite '$spriteref' not defined - skipping image",'sprites',t3lib_div::SYSLOG_SEVERITY_WARNING,func_get_args());
+			return $match;
+		}		
+
+		$path = $this->getRealPath($image,$file);		
+		if(!$path){
+			t3lib_div::devLog("Couldn't find image '$image' - skipping",'sprites',t3lib_div::SYSLOG_SEVERITY_WARNING,func_get_args());
+			return $match;			
+		}	
+		
+		$directives = $this->parseDirectives($directives);		
+		
 		if(!isset($this->sprites[$spriteref])){
 			$this->sprites[$spriteref] = t3lib_div::makeInstance('Tx_Sprites_Utility_Sprite');
 			$this->sprites[$spriteref]->init($spriteref,$this->conf['sprites'][$spriteref]);
 		}
-		$key = $this->sprites[$spriteref]->addImage($path,$directives,$match);
-	
+
+		$key = $this->sprites[$spriteref]->addImage($path,$directives,$match,$type);
+		
 		return $key;
-	}
-	
-	
-	function processBackgroundRule($match,$image,$file){
-			t3lib_div::devLog('Process background rule','sprites',t3lib_div::SYSLOG_SEVERITY_INFO,func_get_args());			
 	}
 	
 }

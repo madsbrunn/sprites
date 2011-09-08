@@ -20,13 +20,14 @@ class Tx_Sprites_Controller_SpritesController extends Tx_Sprites_Controller_Abst
 	 * @return void
 	 */
 	protected function initializeAction() {
-			$this->pageRenderer->addInlineLanguageLabelFile('EXT:sprites/Resources/Private/Language/locallang.xml');
+			$this->pageRenderer->addInlineLanguageLabelFile('EXT:sprites/Resources/Private/Language/locallang.xml');			
 	}
 
 	/**
 	 * @param string $path
+	 *
 	 */
-	public function indexAction(string $path) {
+	public function indexAction($path) {
 		
 		
 		$fileArr = t3lib_div::getAllFilesAndFoldersInPath(array(),$path,'css');
@@ -56,7 +57,7 @@ class Tx_Sprites_Controller_SpritesController extends Tx_Sprites_Controller_Abst
 	/**
 	 * @param string $path
 	 */
-	public function editAction(string $path){
+	public function editAction($path){
 		$registry = t3lib_div::makeInstance('t3lib_Registry');
 		$config = $registry->get('tx_sprites','config');
 		$this->view->assign('config',$config);
@@ -67,7 +68,7 @@ class Tx_Sprites_Controller_SpritesController extends Tx_Sprites_Controller_Abst
 	 * @param string $path
 	 * @param string $config
 	 */
-	public function saveAction(string $path, string $config){
+	public function saveAction($path,$config){
 		$registry = t3lib_div::makeInstance('t3lib_Registry');
 		$registry->set('tx_sprites', 'config', $config);
 		$this->flashMessages->add('Configuration was saved');		

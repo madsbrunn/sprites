@@ -83,7 +83,7 @@ class Tx_Sprites_Utility_Sprite extends t3lib_stdGraphic{
 			} else {
 				
 				//$valign= 'top';
-				$h_pos = $x.'px';
+				$h_pos = '-'.$x.'px';
 				$v_pos = 'top';
 				
 				
@@ -110,17 +110,45 @@ class Tx_Sprites_Utility_Sprite extends t3lib_stdGraphic{
 				}
 			}
 			
+			
+			
 			//write new rule
+			$match = stripslashes($this->images[$key]['match']);			
+			
 			if($image['type'] == 'background-image'){
 				
-				$this->images[$key]['cssrules'] = "background-image:url('/".$this->conf['file']."');\n\t";
-				$this->images[$key]['cssrules'] .= "background-position: ".$h_pos." ".$v_pos.";";
+				$pattern = '/([ \t]*)background-image\s*:.*url\(\s*(?:\'|")?(?:[\.\-\_\/a-zA-Z0-9]*)(?:\'|")?\s*\)(.*;?)\/\*\*\s*sprite-ref:\s*(?:[a-z0-9]+);?(?:.*)\*\//i';
+				$replace =  "$1background-image: url(/".$this->conf['file'].")$2\n$1background-position: ".$h_pos." ".$v_pos.";";
 				
+				$this->images[$key]['cssrules'] = preg_replace($pattern,$replace,$match);
+			
 			} else {
 				
 				//todo: parse background
-				$pattern = '/background\s*:\s*(transparent|(#?(([a-fA-F0-9]){3}){1,2}))?\s*url\((\'|")?(.*)(\'|")?\)\s*(no-repeat|repeat-x|repeat-y)?\s*(scroll|fixed|inherit)?((\s*([0-9]*\s*(%|in|cm|mm|em|ex|pt|pc|px)?)|left|center|right|top|bottom)?((\s*([0-9]*\s*(%|in|cm|mm|em|ex|pt|pc|px)?)|left|center|right|top|bottom))?)?;?/im';
+				//$pattern = '/background\s*:\s*(transparent|(#?(([a-fA-F0-9]){3}){1,2}))?\s*url\((\'|")?(.*)(\'|")?\)\s*(no-repeat|repeat-x|repeat-y)?\s*(scroll|fixed|inherit)?((\s*([0-9]*\s*(%|in|cm|mm|em|ex|pt|pc|px)?)|left|center|right|top|bottom)?((\s*([0-9]*\s*(%|in|cm|mm|em|ex|pt|pc|px)?)|left|center|right|top|bottom))?)?;?/im';
+				//$pattern .= '(?:\s*(?:(?:[0-9]*\s*(?:%|in|cm|mm|em|ex|pt|pc|px))|left|center|right|top|bottom)(?:\s*(?:[0-9]*\s*(?:%|in|cm|mm|em|ex|pt|pc|px))|left|center|right|top|bottom)?)?';	
 
+				
+				$pattern = '/';
+				$pattern .= '([ \t]*)'; // matches white space at the beginning of the line
+				$pattern .= 'background\s*:'; // matches the 'background' keyword + any white space + the colon
+				$pattern .= '(.*)'; //matches anything between the colon and the 'url(...' part. Examples: 'transparent ', '#ffffff' (may be empty)
+				$pattern .= 'url\(\s*(?:\'|")?(?:[\.\-\_\/a-zA-Z0-9]*)(?:\'|")?\s*\)'; //matches the background image. Examples: 'url(../hest/hest.gif)',  url("foobar.jpg") 
+				$pattern .= '(\s*(?:no-repeat|repeat-x|repeat-y))?'; // matches any background-repeat rule. Either 'no-repeat', 'repeat-x', 'repeat-y' or nothing
+				$pattern .= '(\s*(?:scroll|fixed|inherit))?';	//matches any background-attachment rule. Either 'scroll', 'fixed', 'inherit' or nothing
+				
+				//matches any background position rule. E.g. 'top left' 
+				$pattern .= '(?:\s*(?:(?:[0-9]*\s*(?:%|in|cm|mm|em|ex|pt|pc|px))|left|center|right|top|bottom)){0,2}';
+				$pattern .= '(.*;?)'; //matches anything between the above and a possible semi-kolon
+				$pattern .= '\/\*\*\s*sprite-ref:\s*(?:[a-z0-9]+);?(?:.*)\*\//i';
+				
+				$replace = "$1background:$2url(/".$this->conf['file'].")$3$4 ".$h_pos." ".$v_pos."$5";
+
+				$this->images[$key]['cssrules'] = preg_replace($pattern,$replace,$match);
+
+
+				//$pattern .= '(\s*((?[0-9]*\s*(%|in|cm|mm|em|ex|pt|pc|px))|left|center|right|top|bottom)(\s*([0-9]*\s*(%|in|cm|mm|em|ex|pt|pc|px))|left|center|right|top|bottom)?)?'
+				
 			}
 			
 			

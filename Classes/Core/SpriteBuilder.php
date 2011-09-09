@@ -35,8 +35,8 @@ class Tx_Sprites_Core_SpriteBuilder{
 		
 		foreach($this->files as $k => $file){
 			$this->files[$k]['orig_content'] = t3lib_div::getURL($file['orig_path']);
-			$pattern = '/(background-image|background)\s*:.*url\((\'|")?(.*)(\'|")?\).*;?\/\*\*\s*sprite-ref:\s*([a-z0-9]+);(.*)\*\//ime';
-			$replace = '$this->processRule("$0","$1","$3","$5","$6","'.$file['orig_path'].'")';
+			$pattern = '/[ \t]*(background-image|background)\s*:.*url\(\s*(?:\'|")?([\.\-\_\/a-zA-Z0-9]*)(?:\'|")?\s*\).*;?\/\*\*\s*sprite-ref:\s*([a-z0-9]+);?(.*)\*\//ie';
+			$replace = '$this->processRule("$0","$1","$2","$3","$4","'.$file['orig_path'].'")';
 			$this->files[$k]['new_content'] = preg_replace($pattern,$replace,$this->files[$k]['orig_content']);
 		}
 		

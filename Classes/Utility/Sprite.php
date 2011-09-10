@@ -45,7 +45,6 @@ class Tx_Sprites_Utility_Sprite extends t3lib_stdGraphic{
 			
 			if($this->conf['layout'] == 'vertical'){
 				
-				//$halign= 'left';	
 				$h_pos = 'left';
 				$v_pos = '-'.$y.'px';
 				
@@ -55,7 +54,6 @@ class Tx_Sprites_Utility_Sprite extends t3lib_stdGraphic{
 
 				if($directives['sprite-alignment'] == 'right'){				//right
 					
-					//$halign = 'right';
 					$h_pos = 'right';
 					
 					//x - coordinate if the image is aligned to the right edge of the sprite
@@ -82,15 +80,12 @@ class Tx_Sprites_Utility_Sprite extends t3lib_stdGraphic{
 				
 			} else {
 				
-				//$valign= 'top';
 				$h_pos = '-'.$x.'px';
 				$v_pos = 'top';
-				
 				
 				$x_pos = $x + $directives['sprite-margin-left'];
 				if($directives['sprite-alignment'] == 'bottom'){ 			//bottom
 					
-					//$valign = 'bottom';
 					$v_pos = 'bottom';
 					$y_pos = $this->h - $image['height'] - $directives['sprite-margin-bottom'];		
 					
@@ -101,7 +96,8 @@ class Tx_Sprites_Utility_Sprite extends t3lib_stdGraphic{
 				} else { 																							//repeat
 					
 					$y_pos = $directives['sprite-margin-top'];
-					//calculating number of times to repeat the image
+					
+					//number of times to repeat the image
 					$tile = array(1,1);	
 					$_h = $this->h - $directives['sprite-margin-top'];
 					$tile[1] = ceil($_h / $image['height']);
@@ -124,11 +120,6 @@ class Tx_Sprites_Utility_Sprite extends t3lib_stdGraphic{
 			
 			} else {
 				
-				//todo: parse background
-				//$pattern = '/background\s*:\s*(transparent|(#?(([a-fA-F0-9]){3}){1,2}))?\s*url\((\'|")?(.*)(\'|")?\)\s*(no-repeat|repeat-x|repeat-y)?\s*(scroll|fixed|inherit)?((\s*([0-9]*\s*(%|in|cm|mm|em|ex|pt|pc|px)?)|left|center|right|top|bottom)?((\s*([0-9]*\s*(%|in|cm|mm|em|ex|pt|pc|px)?)|left|center|right|top|bottom))?)?;?/im';
-				//$pattern .= '(?:\s*(?:(?:[0-9]*\s*(?:%|in|cm|mm|em|ex|pt|pc|px))|left|center|right|top|bottom)(?:\s*(?:[0-9]*\s*(?:%|in|cm|mm|em|ex|pt|pc|px))|left|center|right|top|bottom)?)?';	
-
-				
 				$pattern = '/';
 				$pattern .= '([ \t]*)'; // matches white space at the beginning of the line
 				$pattern .= 'background\s*:'; // matches the 'background' keyword + any white space + the colon
@@ -136,19 +127,13 @@ class Tx_Sprites_Utility_Sprite extends t3lib_stdGraphic{
 				$pattern .= 'url\(\s*(?:\'|")?(?:[\.\-\_\/a-zA-Z0-9]*)(?:\'|")?\s*\)'; //matches the background image. Examples: 'url(../hest/hest.gif)',  url("foobar.jpg") 
 				$pattern .= '(\s*(?:no-repeat|repeat-x|repeat-y))?'; // matches any background-repeat rule. Either 'no-repeat', 'repeat-x', 'repeat-y' or nothing
 				$pattern .= '(\s*(?:scroll|fixed|inherit))?';	//matches any background-attachment rule. Either 'scroll', 'fixed', 'inherit' or nothing
-				
-				//matches any background position rule. E.g. 'top left' 
-				$pattern .= '(?:\s*(?:(?:[0-9]*\s*(?:%|in|cm|mm|em|ex|pt|pc|px))|left|center|right|top|bottom)){0,2}';
+				$pattern .= '(?:\s*(?:(?:[0-9]*\s*(?:%|in|cm|mm|em|ex|pt|pc|px))|left|center|right|top|bottom)){0,2}'; //matches any background position rule. E.g. 'top left'
 				$pattern .= '(.*;?)'; //matches anything between the above and a possible semi-kolon
 				$pattern .= '\/\*\*\s*sprite-ref:\s*(?:[a-z0-9]+);?(?:.*)\*\//i';
 				
 				$replace = "$1background:$2url(/".$this->conf['file'].")$3$4 ".$h_pos." ".$v_pos."$5";
 
 				$this->images[$key]['cssrules'] = preg_replace($pattern,$replace,$match);
-
-
-				//$pattern .= '(\s*((?[0-9]*\s*(%|in|cm|mm|em|ex|pt|pc|px))|left|center|right|top|bottom)(\s*([0-9]*\s*(%|in|cm|mm|em|ex|pt|pc|px))|left|center|right|top|bottom)?)?'
-				
 			}
 			
 			
@@ -161,11 +146,7 @@ class Tx_Sprites_Utility_Sprite extends t3lib_stdGraphic{
 				$y += ($image['height'] + $directives['sprite-margin-top'] + $directives['sprite-margin-bottom']);
 			}
 			$this->workArea = array($x,$y,$w,$h);
-			/*echo $image['file']."<br />";
-			flush();*/
 		}
-		
-		//imagecolortransparent($this->im, $backgroundcolor);		
 		$this->output(PATH_site . $this->conf['file']);
 	}
 
@@ -193,10 +174,18 @@ class Tx_Sprites_Utility_Sprite extends t3lib_stdGraphic{
 		//validate sprite alignment
 		$directives['sprite-alignment'] = isset($directives['sprite-alignment']) ? strtolower($directives['sprite-alignment']) : 'left';
 		if($this->conf['layout'] == 'vertical'){ //allowed alignments for vertical layout are left,right and repeat
+			
+			if($directives['sprite-alignment'] && !in_array($directives['sprite-alignment'],array('left','right','repeat'))){
+				t3lib_div::devLog('Invalid or missing sprite alignment \''.$directives['sprite-alignment'].'\' for sprite with vertical layout','sprites',t3lib_div::SYSLOG_SEVERITY_WARNING);				
+			}
 			$directives['sprite-alignment'] = in_array($directives['sprite-alignment'],array('left','right','repeat')) ? $directives['sprite-alignment'] :	'left';
+			
+		
 		} else { //allowed alignments for horizontal layout
 			$directives['sprite-alignment'] = in_array($directives['sprite-alignment'],array('top','bottom','repeat')) ?	$directives['sprite-alignment'] :	'top';
 		}
+		
+		//@TODO implement centered sprite alignment
 		
 		if(!isset($this->images[$key])){
 			
@@ -241,6 +230,7 @@ class Tx_Sprites_Utility_Sprite extends t3lib_stdGraphic{
 			}
 		}
 	}
+	
 	
 	function sortImages(){
 		

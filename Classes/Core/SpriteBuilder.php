@@ -33,6 +33,7 @@ class Tx_Sprites_Core_SpriteBuilder{
 
 	function buildSprites(){
 		
+		//extract rules and process them
 		foreach($this->files as $k => $file){
 			$this->files[$k]['orig_content'] = t3lib_div::getURL($file['orig_path']);
 			$pattern = '/[ \t]*(background-image|background)\s*:.*url\(\s*(?:\'|")?([\.\-\_\/a-zA-Z0-9]*)(?:\'|")?\s*\).*;?\/\*\*\s*sprite-ref:\s*([a-z0-9]+);?(.*)\*\//ie';
@@ -63,7 +64,6 @@ class Tx_Sprites_Core_SpriteBuilder{
 			if(sha1($file['orig_content']) == sha1($file['new_content'])){
 				t3lib_div::devLog('File "'.$file['orig_path'].'" was not changed so no reason to write','sprites',t3lib_div::SYSLOG_SEVERITY_INFO,$file);				
 			}
-			
 			t3lib_div::writeFile($file['new_path'],$file['new_content']);						
 		}
 		

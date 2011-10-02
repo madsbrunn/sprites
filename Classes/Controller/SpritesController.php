@@ -81,16 +81,16 @@ class Tx_Sprites_Controller_SpritesController extends Tx_Sprites_Controller_Abst
 	public function generateAction($files){
 		set_time_limit(3000);
 		$conf = $this->getConfiguration();
-		$spriteBuilder = t3lib_div::makeInstance('Tx_Sprites_Core_SpriteBuilder',$files,$conf);
+		$spriteBuilder = t3lib_div::makeInstance('Tx_Sprites_Utility_SpriteBuilder',$files,$conf);
 		$spriteBuilder->buildSprites();
 	}
+	
 	
 	
 	public function getConfiguration(){
 		$conf = t3lib_div::makeInstance('t3lib_Registry')->get('tx_sprites','config');
 		$tsparser = t3lib_div::makeInstance('t3lib_TSparser');
 		$tsparser->parse($conf);
-		//die(t3lib_div::view_array(Tx_Extbase_Utility_TypoScript::convertTypoScriptArrayToPlainArray($tsparser->setup)));
 		return Tx_Extbase_Utility_TypoScript::convertTypoScriptArrayToPlainArray($tsparser->setup);
 	}
 	

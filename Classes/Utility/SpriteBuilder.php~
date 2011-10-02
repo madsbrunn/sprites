@@ -5,7 +5,7 @@ define('TX_SPRITE_IMAGE_PATH_INDEX',1);
 define('TX_SPRITE_REF_INDEX',2);
 define('TX_SPRITE_DIRECTIVES_INDEX',3);
 
-class Tx_Sprites_Utility_SpriteBuilder{
+class Tx_Sprites_Core_SpriteBuilder{
 	
 	private $files = array();
 	private $conf = array();

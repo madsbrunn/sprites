@@ -19,6 +19,10 @@ if(TYPO3_MODE == 'BE'){
 	if(!defined('TX_SPRITES_DEBUG')){
 		define('TX_SPRITES_DEBUG',$tmp_extConf['debugMode']);
 	}
+	
+	if(!defined('TX_SPRITES_PNGCRUSH_PATH')){
+		define('TX_SPRITES_PNGCRUSH_PATH',$tmp_extConf['pngcrush_path']);
+	}
 }
 
 

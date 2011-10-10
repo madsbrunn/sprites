@@ -20,7 +20,10 @@ class Tx_Sprites_Controller_SpritesController extends Tx_Sprites_Controller_Abst
 	 * @return void
 	 */
 	protected function initializeAction() {
-			$this->pageRenderer->addInlineLanguageLabelFile('EXT:sprites/Resources/Private/Language/locallang.xml');			
+	  
+	  
+	  
+		$this->pageRenderer->addInlineLanguageLabelFile('EXT:sprites/Resources/Private/Language/locallang.xml');			
 	}
 
 	/**
@@ -79,12 +82,34 @@ class Tx_Sprites_Controller_SpritesController extends Tx_Sprites_Controller_Abst
 	 * @param array $files
 	 */
 	public function generateAction($files){
+	  
 		set_time_limit(3000);
+		
+		$content = $this->view->render();
+		list($start,$end) = explode('###CONTENT###',$content);
+	  
+	  //render header
+	  ob_end_flush();
+	  echo $this->template->startpage($GLOBALS['LANG']->sL('LLL:EXT:sprites/Resources/Private/Language/locallang.xml:module.title'));
+	  echo $start;
+		flush();
+	  
+		
+		//generate sprites
 		$conf = $this->getConfiguration();
-		$spriteBuilder = t3lib_div::makeInstance('Tx_Sprites_Utility_SpriteBuilder',$files,$conf);
+		$spriteBuilder = t3lib_div::makeInstance('Tx_Sprites_Utility_SpriteBuilder',$files,$conf,$this);
+
+    $spriteBuilder->processFiles();		
 		$spriteBuilder->buildSprites();
+
+    //render footer		
+		ob_end_flush();
+		echo $end;
+		echo $this->template->endPage();
+		flush;
+		
+		return TRUE;
 	}
-	
 	
 	
 	public function getConfiguration(){
@@ -94,8 +119,13 @@ class Tx_Sprites_Controller_SpritesController extends Tx_Sprites_Controller_Abst
 		return Tx_Extbase_Utility_TypoScript::convertTypoScriptArrayToPlainArray($tsparser->setup);
 	}
 	
-
 	
+	function onProcessImage($image){
+	  //usleep(500000);
+	  ob_end_flush();
+	  echo $image . '<br />';
+	  flush();
+	}
 
 }
 

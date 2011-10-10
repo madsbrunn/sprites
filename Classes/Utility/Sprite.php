@@ -8,21 +8,42 @@ class Tx_Sprites_Utility_Sprite extends t3lib_stdGraphic{
 	var $h = 0;
 	var $images = Array();
 	var $workArea = Array();
+	var $extension = '';
+	var $colors = 0;
+	var $isTrueColor = FALSE;
+	var $imageTypes = array();
 	
-	function init($id,$conf){
+	/**
+	 * @param  string  $id: the sprite id
+	 * @param  array  $conf: configuration for the sprite
+	 * @return  void
+	 * @access  public
+	 */
+	public function init($id,$conf){
 		parent::init();
 		$this->id = $id;
 		$this->conf = $conf;
 		
 		$this->conf['layout'] = isset($this->conf['layout']) ? strtolower($this->conf['layout']) : 'vertical';
 		
+		$this->conf['matte-color'] = $this->conf['matte-color'] ? $this->conf['matte-color'] : '#ffffff';
+		
 		if(!in_array($this->conf['layout'],array('vertical','horizontal'))) {
 			$this->conf['layout'] = 'vertical';
 			t3lib_div::devLog('Invalid sprite layout \''.$this->conf['layout'].'\'. Falling back to \'vertical\' layout','sprites',t3lib_div::SYSLOG_SEVERITY_WARNING);
 		}
+		$pathparts = pathinfo($this->conf['file']);
+		$this->extension = $pathparts['extension'];
+		
 	}
 	
-	function make(){
+	/**
+	 * Compiles the actual sprite image
+	 *
+	 * @return  void
+	 * @access  public
+	 */
+	public function make(){
 		
 		$this->setDimensions();
 		$this->setWorkArea('');
@@ -30,9 +51,23 @@ class Tx_Sprites_Utility_Sprite extends t3lib_stdGraphic{
 		
 		$this->im = imagecreatetruecolor($this->w,$this->h);
 		imagealphablending( $this->im, false );
-		imagesavealpha( $this->im, true );	
+		imagesavealpha( $this->im, true );
+
+	  //imagefill($this->im, 0, 0, imagecolorallocatealpha($this->im, 255, 255, 255, 127));
 		
-		imagefill($this->im, 0, 0, imagecolorallocatealpha($this->im, 0, 255, 255, 127));
+		//if($this->extension == 'png'){
+		//imagefill($this->im, 0, 0, imagecolorallocatealpha($this->im, 0, 255, 255, 127));		
+		  imagefill($this->im, 0, 0, imagecolorallocatealpha($this->im, 255, 255, 255, 127));
+		//} elseif($this->extension == 'gif'){
+		//  imagefill($this->im, 0, 0, imagecolorallocatealpha($this->im, 0, 0, 0,127));
+		//}
+
+		//if($
+		//if($this->extension == 'png'){
+		//} else {
+		//	imagefill($this->im, 0, 0, imagecolorallocate($this->im, 127, 127, 127));
+		//}
+		
 		
 		foreach($this->images as $key => $image){
 
@@ -136,16 +171,39 @@ class Tx_Sprites_Utility_Sprite extends t3lib_stdGraphic{
 			$this->workArea = array($x,$y,$w,$h);
 		}
 		
+		//if((!$this->truecolor) && $this->colors){
+		//  $this->makeEffect($this->im, array('value' => 'colors=' . $this->colors));
+		//}
+		//ob_end_flush();
+		//echo imagecolorstotal($this->im).'<br />';
+		//flush();
+		
+		
+		imagetruecolortopalette($this->im,TRUE,255);
+		
+		
 		$this->output(PATH_site . $this->conf['file']);
 	}
 
-
-	function build(){
-		$this->output(PATH_site . $this->conf['file']);
+	/**
+	 * @return  void
+	 */
+	public function build(){
+		$this->output(PATH_site . $this->conf['file']);		
 	}
 	
 	
-	function addImage($file,$directives,$match,$type){
+	/**
+	 * Adds an image to the sprite and returns an md5 hash which is used later to insert a new css rule in the css file
+	 *
+	 * @param  string  $file: the absolute path to the file that should be inserted in the sprite
+	 * @param  array  $directives: instructions for how to position the image on the sprite
+	 * @param  string  $match: the complete match of the css-rule containing the image
+	 * @param  string  $type: The type of css-rule (background or background-image)
+	 * @return  string  an md5 hash
+	 * @access  public
+	 */
+	public function addImage($file,$directives,$match,$type){
 
 		if(!is_file($file)){
 			t3lib_div::devLog('File "'.$file.'" did not exist','sprites',t3lib_div::SYSLOG_SEVERITY_WARNING);
@@ -177,8 +235,19 @@ class Tx_Sprites_Utility_Sprite extends t3lib_stdGraphic{
 		//@TODO implement centered sprite alignment
 		
 		if(!isset($this->images[$key])){
-			
+		  
 			$fileinfo = $this->getImageDimensions($file);
+			
+			$this->imageTypes[$fileinfo['2']] = $fileinfo['2'];
+			
+			$img = $this->imageCreateFromFile($fileinfo[3]);
+			$colorsInImage = imagecolorstotal($img);
+			$isTrueColor = imageistruecolor($img);
+			
+			
+			$this->colors = $this->colors < $colorsInImage ? $colorsInImage : $this->colors;
+			$this->isTrueColor = $isTrueColor;
+			
 			$image = array(
 				'width' => $fileinfo[0],
 				'height' => $fileinfo[1],
@@ -186,7 +255,9 @@ class Tx_Sprites_Utility_Sprite extends t3lib_stdGraphic{
 				'file' => $fileinfo[3],
 				'directives' => $directives,
 				'match' => $match,
-				'type' => $type
+				'type' => $type,
+				'colors' => $colorsInImage,
+				'truecolor' => $isTrueColor
 			);
 			
 			$this->images[$key] = $image;
@@ -205,9 +276,25 @@ class Tx_Sprites_Utility_Sprite extends t3lib_stdGraphic{
 		return $key;
 	}
 	
+	/**
+	 * Returns the absolute path of the sprite image
+	 *
+	 * @return  string  the absolute path of the sprite image
+	 * @access  public
+	 */
+	public function getAbsFileName(){
+		return PATH_site . $this->conf['file'];		
+	}
 	
 	
-	function setDimensions(){
+	
+	/**
+	 * Calculates the dimensions of the sprite image
+	 *
+	 * @return  void
+	 * @access  private
+	 */
+	protected function setDimensions(){
 		foreach($this->images as $image){
 			$directives = $image['directives'];
 			if($this->conf['layout'] == 'horizontal'){
@@ -221,11 +308,11 @@ class Tx_Sprites_Utility_Sprite extends t3lib_stdGraphic{
 	}
 	
 	
-	function sortImages(){
+	protected function sortImages(){
 		
 	}
 	
-	function compareImageSize(){
+	protected function compareImageSize(){
 		
 	}
 	
@@ -240,7 +327,7 @@ class Tx_Sprites_Utility_Sprite extends t3lib_stdGraphic{
 	 * @return	void		Works on the $im image pointer
 	 * @access private
 	 */
-	function copyGifOntoGif(&$im, $cpImg, $conf, $workArea) {
+	public function copyGifOntoGif(&$im, $cpImg, $conf, $workArea) {
 		$cpW = imagesx($cpImg);
 		$cpH = imagesy($cpImg);
 		$tile = t3lib_div::intExplode(',', $conf['tile']);
@@ -280,6 +367,8 @@ class Tx_Sprites_Utility_Sprite extends t3lib_stdGraphic{
 							if ($Ystart < $workArea[1] + $workArea[3]) { // if this image is inside of the workArea, then go on
 								// override - we are using imagecopy instead of imagecopyresized in order to preserve alpha transparency
 								imagecopy($im,$cpImg,$Xstart,$Ystart,$cpImgCutX,$cpImgCutY,$w,$h);
+								//$this->imagecopyresized($im, $cpImg, $Xstart, $Ystart, $cpImgCutX, $cpImgCutY, $w, $h, $w, $h);
+
 							}
 						}
 					} // Y:
@@ -287,6 +376,28 @@ class Tx_Sprites_Utility_Sprite extends t3lib_stdGraphic{
 			}
 		}
 	}
+	
+	/**
+	 * Implements the "IMAGE" GIFBUILDER object, when the "mask" property is false (using only $conf['file'])
+	 *
+	 * @param	pointer		GDlib image pointer
+	 * @param	array		TypoScript array with configuration for the GIFBUILDER object.
+	 * @param	array		The current working area coordinates.
+	 * @return	void
+	 * @see tslib_gifBuilder::make(), maskImageOntoImage()
+	 */
+	public function copyImageOntoImage(&$im, $conf, $workArea) {
+		if ($conf['file']) {
+			if (!t3lib_div::inList($this->gdlibExtensions, $conf['BBOX'][2])) {
+				$conf['BBOX'] = $this->imageMagickConvert($conf['BBOX'][3], $this->gifExtension, '', '', '', '', '');
+				$conf['file'] = $conf['BBOX'][3];
+			}
+			$cpImg = $this->imageCreateFromFile($conf['file']);
+			
+			$this->copyGifOntoGif($im, $cpImg, $conf, $workArea);
+			imageDestroy($cpImg);
+		}
+	}	
 	
 }
 

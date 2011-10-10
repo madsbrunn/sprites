@@ -1,2 +1,5 @@
 # cat=basic; type=boolean; label=Debug mode: Enabling this will result in a lot of calls to t3lib_div::devLog(). Only for debugging purposes since it will flood the log with all sorts of crap
 debugMode = 0
+
+# cat=basic; type=string; label=Path to pngcrush: Enter the path where the pngcrush executable may be located
+pngcrush_path = /usr/bin/

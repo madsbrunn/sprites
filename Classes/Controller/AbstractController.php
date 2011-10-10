@@ -4,12 +4,6 @@ class Tx_Sprites_Controller_AbstractController extends Tx_Extbase_MVC_Controller
 
 	
 	protected function initializeView($view){
-		
-		//echo '<pre>';
-		//print_r($this->request->getArguments());
-		//echo '</pre>';
-		//die();
-		
 		$this->view->assign('arguments',$this->request->getArguments());
 	}
 	

@@ -7,11 +7,12 @@ define('TX_SPRITE_DIRECTIVES_INDEX',3);
 
 class Tx_Sprites_Utility_SpriteBuilder{
 	
-	private $files = array();
-	private $conf = array();
-	private $sprites = array();
+	protected $files = array();
+	protected $conf = array();
+	protected $sprites = array();
+	protected $caller = null;
 	
-	function __construct($files,$conf){
+	function __construct($files,$conf,$caller=null){
 		
 		foreach($files as $file){
 			$pparts = pathinfo($file);
@@ -25,14 +26,15 @@ class Tx_Sprites_Utility_SpriteBuilder{
 		
 		$this->conf = $conf;
 		
+		$this->caller = $caller;
+		
 		if(TX_SPRITES_DEBUG){
 			t3lib_div::devLog('SpriteBuilder constructor arguments','sprites',t3lib_div::SYSLOG_SEVERITY_INFO,func_get_args());
 		}
 	}
 	
-
-	function buildSprites(){
-		
+	
+	function processFiles(){
 		//extract rules and process them
 		foreach($this->files as $k => $file){
 			$this->files[$k]['orig_content'] = t3lib_div::getURL($file['orig_path']);
@@ -40,11 +42,20 @@ class Tx_Sprites_Utility_SpriteBuilder{
 			$replace = '$this->processRule("$0","$1","$2","$3","$4","'.$file['orig_path'].'")';
 			$this->files[$k]['new_content'] = preg_replace($pattern,$replace,$this->files[$k]['orig_content']);
 		}
+	}
+
+	
+	/**
+	 * @return  void
+	 */
+	function buildSprites(){
 		
 		// build sprite images 
 		foreach($this->sprites as $sprite){
-			$sprite->make();		
+			$sprite->make();
+			//Tx_Sprites_Utility_Optimizer::optimize($sprite->getAbsFileName());
 		}
+		
 		
 		// now replace placeholders in css content
 		foreach($this->files as $k => $file){
@@ -61,10 +72,10 @@ class Tx_Sprites_Utility_SpriteBuilder{
 		
 		//now write new css files
 		foreach($this->files as $k => $file){
-			if(sha1($file['orig_content']) == sha1($file['new_content'])){
-				t3lib_div::devLog('File "'.$file['orig_path'].'" was not changed so no reason to write','sprites',t3lib_div::SYSLOG_SEVERITY_INFO,$file);				
-			}
-			t3lib_div::writeFile($file['new_path'],$file['new_content']);						
+			//if(sha1($file['orig_content']) == sha1($file['new_content'])){
+			//	t3lib_div::devLog('File "'.$file['orig_path'].'" was not changed so no reason to write','sprites',t3lib_div::SYSLOG_SEVERITY_INFO,$file);				
+			//}
+			t3lib_div::writeFile($file['new_path'],$file['new_content']);
 		}
 		
 	}
@@ -110,6 +121,9 @@ class Tx_Sprites_Utility_SpriteBuilder{
 	
 	
 	function processRule($match,$type,$image,$spriteref,$directives,$file){
+	  
+	  $this->caller->onProcessImage($image);
+	  
 		
 		if(TX_SPRITES_DEBUG){
 			t3lib_div::devLog('Process rule','sprites',t3lib_div::SYSLOG_SEVERITY_INFO,func_get_args());					
@@ -135,7 +149,7 @@ class Tx_Sprites_Utility_SpriteBuilder{
 		
 		if(!isset($this->sprites[$spriteref])){
 			$this->sprites[$spriteref] = t3lib_div::makeInstance('Tx_Sprites_Utility_Sprite');
-			$this->sprites[$spriteref]->init($spriteref,$this->conf['sprites'][$spriteref]);
+			$this->sprites[$spriteref]->init($spriteref,$this->conf['sprites'][$spriteref],$this);
 		}
 
 		$key = $this->sprites[$spriteref]->addImage($path,$directives,$match,$type);

@@ -1,19 +1,19 @@
 <?php
 
 
-define('TX_SPRITE_IMAGE_PATH_INDEX',1);
-define('TX_SPRITE_REF_INDEX',2);
-define('TX_SPRITE_DIRECTIVES_INDEX',3);
+//define('TX_SPRITE_IMAGE_PATH_INDEX',1);
+//define('TX_SPRITE_REF_INDEX',2);
+//define('TX_SPRITE_DIRECTIVES_INDEX',3);
 
 class Tx_Sprites_Utility_SpriteBuilder{
 	
 	protected $files = array();
 	protected $conf = array();
 	protected $sprites = array();
-	protected $caller = null;
+	protected $observers = array();
 	
-	function __construct($files,$conf,$caller=null){
-		
+	function __construct($files,$conf){
+
 		foreach($files as $file){
 			$pparts = pathinfo($file);
 			$new_path = $pparts['dirname'].'/'.$pparts['filename'] . ($this->conf['css-file-suffix'] ? $this->conf['css-file-suffix'] : '-sprite') . '.'.$pparts['extension'];
@@ -26,15 +26,18 @@ class Tx_Sprites_Utility_SpriteBuilder{
 		
 		$this->conf = $conf;
 		
-		$this->caller = $caller;
-		
 		if(TX_SPRITES_DEBUG){
 			t3lib_div::devLog('SpriteBuilder constructor arguments','sprites',t3lib_div::SYSLOG_SEVERITY_INFO,func_get_args());
 		}
 	}
 	
+
 	
-	function processFiles(){
+	/**
+	 * @return  void
+	 */
+	function buildSprites(){
+
 		//extract rules and process them
 		foreach($this->files as $k => $file){
 			$this->files[$k]['orig_content'] = t3lib_div::getURL($file['orig_path']);
@@ -42,18 +45,45 @@ class Tx_Sprites_Utility_SpriteBuilder{
 			$replace = '$this->processRule("$0","$1","$2","$3","$4","'.$file['orig_path'].'")';
 			$this->files[$k]['new_content'] = preg_replace($pattern,$replace,$this->files[$k]['orig_content']);
 		}
-	}
+		
+		$totalimages = 0;
+		foreach($this->sprites as $sprite){
+			$totalimages += $sprite->getImageCount();
+		}
 
-	
-	/**
-	 * @return  void
-	 */
-	function buildSprites(){
+		$imagecount = 0;
 		
 		// build sprite images 
 		foreach($this->sprites as $sprite){
-			$sprite->make();
-			//Tx_Sprites_Utility_Optimizer::optimize($sprite->getAbsFileName());
+			
+			$sprite->preMakeSprite();
+			
+			foreach($sprite->getImageKeys() as $key){
+				
+				$sprite->addImage($key);
+				
+				$completed = intval(++$imagecount * 100 / $totalimages); 				
+				
+				$data = array(
+					'image' => $sprite->getImage($key),
+					'sprite-id' => $sprite->getId(),
+					'completed' => $completed
+				);
+				
+				foreach($this->observers as $observer){
+					$observer->onAddImage($data);
+				}
+				
+			}
+			
+			$sprite->postMakeSprite();
+			
+			$sprite->write();
+			foreach($this->observers as $observer){
+				$observer->onWriteSprite();
+			}	
+			
+			Tx_Sprites_Utility_Optimizer::optimize($sprite->getAbsFileName());
 		}
 		
 		
@@ -66,15 +96,13 @@ class Tx_Sprites_Utility_SpriteBuilder{
 			}
 		}
 		
+		
 		if(TX_SPRITES_DEBUG){
 			t3lib_div::devLog('Wrote new css rules to content','sprites',t3lib_div::SYSLOG_SEVERITY_INFO,$this->files);			
 		}
 		
 		//now write new css files
 		foreach($this->files as $k => $file){
-			//if(sha1($file['orig_content']) == sha1($file['new_content'])){
-			//	t3lib_div::devLog('File "'.$file['orig_path'].'" was not changed so no reason to write','sprites',t3lib_div::SYSLOG_SEVERITY_INFO,$file);				
-			//}
 			t3lib_div::writeFile($file['new_path'],$file['new_content']);
 		}
 		
@@ -122,8 +150,7 @@ class Tx_Sprites_Utility_SpriteBuilder{
 	
 	function processRule($match,$type,$image,$spriteref,$directives,$file){
 	  
-	  $this->caller->onProcessImage($image);
-	  
+	  	//$this->caller->onProcessImage($image);
 		
 		if(TX_SPRITES_DEBUG){
 			t3lib_div::devLog('Process rule','sprites',t3lib_div::SYSLOG_SEVERITY_INFO,func_get_args());					
@@ -152,9 +179,17 @@ class Tx_Sprites_Utility_SpriteBuilder{
 			$this->sprites[$spriteref]->init($spriteref,$this->conf['sprites'][$spriteref],$this);
 		}
 
-		$key = $this->sprites[$spriteref]->addImage($path,$directives,$match,$type);
+		$key = $this->sprites[$spriteref]->registerImage($path,$directives,$match,$type);
+		
+		foreach($this->observers as $observer){
+			$observer->onRegisterImage();
+		}		
 		
 		return $key;
+	}
+
+	public function addObserver($observer){
+		$this->observers[] = $observer;
 	}
 	
 }

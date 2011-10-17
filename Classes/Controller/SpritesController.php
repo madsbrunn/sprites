@@ -20,9 +20,6 @@ class Tx_Sprites_Controller_SpritesController extends Tx_Sprites_Controller_Abst
 	 * @return void
 	 */
 	protected function initializeAction() {
-	  
-	  
-	  
 		$this->pageRenderer->addInlineLanguageLabelFile('EXT:sprites/Resources/Private/Language/locallang.xml');			
 	}
 
@@ -88,26 +85,41 @@ class Tx_Sprites_Controller_SpritesController extends Tx_Sprites_Controller_Abst
 		$content = $this->view->render();
 		list($start,$end) = explode('###CONTENT###',$content);
 	  
-	  //render header
-	  ob_end_flush();
-	  echo $this->template->startpage($GLOBALS['LANG']->sL('LLL:EXT:sprites/Resources/Private/Language/locallang.xml:module.title'));
-	  echo $start;
+		//render header
+		ob_end_flush();
+		echo $this->template->startpage($GLOBALS['LANG']->sL('LLL:EXT:sprites/Resources/Private/Language/locallang.xml:module.title'));
+		echo $start;
+		
+		echo '
+			<p id="progress-message">&nbsp;</p>
+			<br />	
+			<div style="width:100%; height:20px; border: 1px solid black;">
+				<div id="progress-bar" style="float: left; width: 0%; height: 20px; background-color:green;">&nbsp;</div>
+				<div id="transparent-bar" style="float: left; width: 100%; height: 20px; background-color:grey;">&nbsp;</div>
+			</div>
+		';		
+		
 		flush();
-	  
+		
+		
 		
 		//generate sprites
 		$conf = $this->getConfiguration();
-		$spriteBuilder = t3lib_div::makeInstance('Tx_Sprites_Utility_SpriteBuilder',$files,$conf,$this);
-
-    $spriteBuilder->processFiles();		
+		$spriteBuilder = t3lib_div::makeInstance('Tx_Sprites_Utility_SpriteBuilder',$files,$conf);
+		$spriteBuilder->addObserver($this);
 		$spriteBuilder->buildSprites();
+		
+		
+		
 
-    //render footer		
+		//render footer		
 		ob_end_flush();
+		echo t3lib_BEfunc::getThumbNail('thumbs.php',PATH_site . 'fileadmin/sprites/vertical-sprite.gif','','300');
 		echo $end;
 		echo $this->template->endPage();
 		flush;
-		
+
+		//we already rendered the content so return true
 		return TRUE;
 	}
 	
@@ -119,6 +131,29 @@ class Tx_Sprites_Controller_SpritesController extends Tx_Sprites_Controller_Abst
 		return Tx_Extbase_Utility_TypoScript::convertTypoScriptArrayToPlainArray($tsparser->setup);
 	}
 	
+	
+	public function onRegisterImage(){
+		
+	}
+	
+	public function onAddImage($data){
+		usleep(100000);
+		ob_end_flush();
+		echo ('
+			<script type="text/javascript">
+				document.getElementById("progress-bar").style.width = "' . $data['completed'] . '%";
+				document.getElementById("transparent-bar").style.width = "' . (100 - $data['completed']) . '%";
+				document.getElementById("progress-message").firstChild.data="' . $data['image']['file'].' added to sprite \''.$data['sprite-id'] . '\'";				
+			</script>
+		');		
+		
+		//echo '<p><i>'.$data['image']['file'].' added to sprite \''.$data['sprite-id'].'\' ('.$data['completed'].'% completed)</i></p>';
+		flush();
+	}
+	
+	public function onWriteSprite(){
+		
+	}
 	
 	function onProcessImage($image){
 	  //usleep(500000);

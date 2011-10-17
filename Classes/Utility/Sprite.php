@@ -1,17 +1,27 @@
 <?php
 
+//@TODO: improve caching of sprite image by using md5 or date in image name
+
+
 class Tx_Sprites_Utility_Sprite extends t3lib_stdGraphic{
 	
-	var $id;
-	var $im = '';
-	var $w = 0;
-	var $h = 0;
-	var $images = Array();
-	var $workArea = Array();
-	var $extension = '';
-	var $colors = 0;
-	var $isTrueColor = FALSE;
-	var $imageTypes = array();
+	protected $id;	//the id of the sprite
+	protected $im = ''; //internal pointer to the image resource
+	protected $w = 0;	//the width of the sprite image
+	protected $h = 0;	//the height of the sprite image
+	public $images = Array();	//images added to the sprite
+	public $workArea = Array(); 
+	protected $extension = '';	//extension of the sprite image (gif,jpg,png)
+	protected $colors = 0;	//maximum number of colors in image
+	protected $isTrueColor = FALSE;	//is this a truecolor
+	protected $imageTypes = array();	//all registered image types
+	protected $directiveAliases = array(
+		'sprite-margin-left' => array('margin-left'),
+		'sprite-margin-right' => array('margin-right'),
+		'sprite-margin-bottom' => array('margin-bottom'),
+		'sprite-margin-top' => array('margin-top'),
+		'sprite-alignment' => array('alignment','align')
+	);
 	
 	/**
 	 * @param  string  $id: the sprite id
@@ -37,6 +47,23 @@ class Tx_Sprites_Utility_Sprite extends t3lib_stdGraphic{
 		
 	}
 	
+	
+	public function preMakeSprite(){
+		$this->setDimensions();
+		$this->setWorkArea('');
+		$this->sortImages();
+		
+		$this->im = imagecreatetruecolor($this->w,$this->h);
+		imagealphablending( $this->im, false );
+		imagesavealpha( $this->im, true );	
+		
+		imagefill($this->im, 0, 0, imagecolorallocatealpha($this->im, 255, 255, 255, 127));					
+		
+	}
+	
+	public function postMakeSprite(){}
+	
+	
 	/**
 	 * Compiles the actual sprite image
 	 *
@@ -57,7 +84,7 @@ class Tx_Sprites_Utility_Sprite extends t3lib_stdGraphic{
 		
 		//if($this->extension == 'png'){
 		//imagefill($this->im, 0, 0, imagecolorallocatealpha($this->im, 0, 255, 255, 127));		
-		  imagefill($this->im, 0, 0, imagecolorallocatealpha($this->im, 255, 255, 255, 127));
+		imagefill($this->im, 0, 0, imagecolorallocatealpha($this->im, 255, 255, 255, 127));
 		//} elseif($this->extension == 'gif'){
 		//  imagefill($this->im, 0, 0, imagecolorallocatealpha($this->im, 0, 0, 0,127));
 		//}
@@ -139,8 +166,7 @@ class Tx_Sprites_Utility_Sprite extends t3lib_stdGraphic{
 					$image['tile'] = implode(',',$tile);
 					
 				}
-			}
-			
+			}			
 			
 			//write new rule
 			$match = stripslashes($this->images[$key]['match']);			
@@ -149,15 +175,14 @@ class Tx_Sprites_Utility_Sprite extends t3lib_stdGraphic{
 				
 				$pattern = '/([ \t]*)background-image\s*:.*url\(\s*(?:\'|")?(?:[\.\-\_\/a-zA-Z0-9]*)(?:\'|")?\s*\)(.*;?)\/\*\*\s*sprite-ref:\s*(?:[a-z0-9]+);?(?:.*)\*\//i';
 				$replace =  "$1background-image: url(/".$this->conf['file'].")$2\n$1background-position: ".$h_pos." ".$v_pos.";";
-				
 				$this->images[$key]['cssrules'] = preg_replace($pattern,$replace,$match);
 			
 			} else {
 				
 				$pattern = '/([ \t]*)background\s*:(.*)url\(\s*(?:\'|")?(?:[\.\-\_\/a-zA-Z0-9]*)(?:\'|")?\s*\)(\s*(?:no-repeat|repeat-x|repeat-y)\s*)?(\s*(?:scroll|fixed|inherit)\s*)?(?:\s*(?:left|center|right|top|bottom|(?:-?[0-9]*(?:\.[0-9]*)?\s*(?:%|in|cm|mm|em|ex|pt|pc|px)?))\s*){0,2}(.*;?)\/\*\*\s*sprite-ref:\s*(?:[a-z0-9]+);?(?:.*)\*\//i';
 				$replace = "$1background: $2 url(/".$this->conf['file'].")$3$4".$h_pos." ".$v_pos."$5";
-
 				$this->images[$key]['cssrules'] = preg_replace($pattern,$replace,$match);
+				
 			}
 			
 			$this->copyImageOntoImage($this->im,$image,array($x_pos,$y_pos,$w,$h));
@@ -179,16 +204,119 @@ class Tx_Sprites_Utility_Sprite extends t3lib_stdGraphic{
 		//flush();
 		
 		
-		imagetruecolortopalette($this->im,TRUE,255);
+		//imagetruecolortopalette($this->im,TRUE,255);
 		
 		
 		$this->output(PATH_site . $this->conf['file']);
 	}
 
-	/**
-	 * @return  void
-	 */
-	public function build(){
+
+	public function addImage($key){
+		
+		$image = $this->images[$key];
+
+		list($x,$y,$w,$h) = $this->workArea;
+		
+		$directives = $image['directives'];
+
+		$h_pos = '0';
+		$v_pos = '0';
+		
+		if($this->conf['layout'] == 'vertical'){
+			
+			$h_pos = 'left';
+			$v_pos = '-'.$y.'px';
+			
+			
+			//calculating  y - coordinate
+			$y_pos = $y+$directives['sprite-margin-top'];
+
+			if($directives['sprite-alignment'] == 'right'){				//right
+				
+				$h_pos = 'right';
+				
+				//x - coordinate if the image is aligned to the right edge of the sprite
+				$x_pos = $this->w - $image['width'] - $directives['sprite-margin-right']; 
+				
+			} elseif($directives['sprite-alignment'] == 'left'){ 	//left
+				
+				//x - coordinate if aligned to the left edge of the sprite
+				$x_pos = $directives['sprite-margin-left'];
+				
+			} else { 																							//repeat
+				
+				//calculating  x-coordinate
+				$x_pos = $directives['sprite-margin-left'];
+				
+				//calculating number of times to repeat the image
+				$tile = array(1,1);
+				$_w = $this->w - $directives['sprite-margin-left'];
+				$tile[0] = ceil($_w / $image['width']);
+				$image['tile'] = implode(',',$tile);
+				
+			}
+			
+			
+		} else {
+			
+			$h_pos = '-'.$x.'px';
+			$v_pos = 'top';
+			
+			$x_pos = $x + $directives['sprite-margin-left'];
+			if($directives['sprite-alignment'] == 'bottom'){ 			//bottom
+				
+				$v_pos = 'bottom';
+				$y_pos = $this->h - $image['height'] - $directives['sprite-margin-bottom'];		
+				
+			} elseif($directives['sprite-alignment'] == 'top'){ 	//top
+				
+				$y_pos = $directives['sprite-margin-top'];		
+				
+			} else { 																							//repeat
+				
+				$y_pos = $directives['sprite-margin-top'];
+				
+				//number of times to repeat the image
+				$tile = array(1,1);	
+				$_h = $this->h - $directives['sprite-margin-top'];
+				$tile[1] = ceil($_h / $image['height']);
+				$image['tile'] = implode(',',$tile);
+				
+			}
+		}			
+		
+		//write new rule
+		$match = stripslashes($this->images[$key]['match']);			
+		
+		if($image['type'] == 'background-image'){
+			
+			$pattern = '/([ \t]*)background-image\s*:.*url\(\s*(?:\'|")?(?:[\.\-\_\/a-zA-Z0-9]*)(?:\'|")?\s*\)(.*;?)\/\*\*\s*sprite-ref:\s*(?:[a-z0-9]+);?(?:.*)\*\//i';
+			$replace =  "$1background-image: url(/".$this->conf['file'].")$2\n$1background-position: ".$h_pos." ".$v_pos.";";
+			$this->images[$key]['cssrules'] = preg_replace($pattern,$replace,$match);
+		
+		} else {
+			
+			$pattern = '/([ \t]*)background\s*:(.*)url\(\s*(?:\'|")?(?:[\.\-\_\/a-zA-Z0-9]*)(?:\'|")?\s*\)(\s*(?:no-repeat|repeat-x|repeat-y)\s*)?(\s*(?:scroll|fixed|inherit)\s*)?(?:\s*(?:left|center|right|top|bottom|(?:-?[0-9]*(?:\.[0-9]*)?\s*(?:%|in|cm|mm|em|ex|pt|pc|px)?))\s*){0,2}(.*;?)\/\*\*\s*sprite-ref:\s*(?:[a-z0-9]+);?(?:.*)\*\//i';
+			$replace = "$1background: $2 url(/".$this->conf['file'].")$3$4".$h_pos." ".$v_pos."$5";
+			$this->images[$key]['cssrules'] = preg_replace($pattern,$replace,$match);
+			
+		}
+		
+		$this->copyImageOntoImage($this->im,$image,array($x_pos,$y_pos,$w,$h));
+		
+		//calculate next offset
+		if($this->conf['layout'] == 'horizontal'){
+			$x += ($image['width'] + $directives['sprite-margin-left'] + $directives['sprite-margin-right']);
+		} else { //vertical
+			$y += ($image['height'] + $directives['sprite-margin-top'] + $directives['sprite-margin-bottom']);
+		}
+		$this->workArea = array($x,$y,$w,$h);
+
+		
+	}
+
+
+	public function write(){
 		$this->output(PATH_site . $this->conf['file']);		
 	}
 	
@@ -203,7 +331,7 @@ class Tx_Sprites_Utility_Sprite extends t3lib_stdGraphic{
 	 * @return  string  an md5 hash
 	 * @access  public
 	 */
-	public function addImage($file,$directives,$match,$type){
+	public function registerImage($file,$directives,$match,$type){
 
 		if(!is_file($file)){
 			t3lib_div::devLog('File "'.$file.'" did not exist','sprites',t3lib_div::SYSLOG_SEVERITY_WARNING);
@@ -213,13 +341,14 @@ class Tx_Sprites_Utility_Sprite extends t3lib_stdGraphic{
 		$key = md5($match);
 		
 		//validate margins
-		$directives['sprite-margin-left'] = intval($directives['sprite-margin-left']);
-		$directives['sprite-margin-right'] = intval($directives['sprite-margin-right']);
-		$directives['sprite-margin-top'] = intval($directives['sprite-margin-top']);
-		$directives['sprite-margin-bottom'] = intval($directives['sprite-margin-bottom']);
+		$directives['sprite-margin-left'] = intval($this->getDirective('sprite-margin-left',$directives,0));
+		$directives['sprite-margin-right'] = intval($this->getDirective('sprite-margin-right',$directives,0));
+		$directives['sprite-margin-top'] = intval($this->getDirective('sprite-margin-top',$directives,0));
+		$directives['sprite-margin-bottom'] = intval($this->getDirective('sprite-margin-bottom',$directives,0));
 		
 		//validate sprite alignment
-		$directives['sprite-alignment'] = isset($directives['sprite-alignment']) ? strtolower($directives['sprite-alignment']) : 'left';
+		$alignment = $this->getDirective('sprite-alignment',$directives);
+		$directives['sprite-alignment'] = $alignment ? strtolower($alignment) : 'left';
 		if($this->conf['layout'] == 'vertical'){ //allowed alignments for vertical layout are left,right and repeat
 			
 			if($directives['sprite-alignment'] && !in_array($directives['sprite-alignment'],array('left','right','repeat'))){
@@ -239,11 +368,15 @@ class Tx_Sprites_Utility_Sprite extends t3lib_stdGraphic{
 			$fileinfo = $this->getImageDimensions($file);
 			
 			$this->imageTypes[$fileinfo['2']] = $fileinfo['2'];
-			
+
 			$img = $this->imageCreateFromFile($fileinfo[3]);
-			$colorsInImage = imagecolorstotal($img);
-			$isTrueColor = imageistruecolor($img);
 			
+			//number of colors in image
+			$colorsInImage = imagecolorstotal($img);
+			
+			//is this a truecolor image
+			$isTrueColor = imageistruecolor($img);
+			imagedestroy($img);
 			
 			$this->colors = $this->colors < $colorsInImage ? $colorsInImage : $this->colors;
 			$this->isTrueColor = $isTrueColor;
@@ -262,19 +395,35 @@ class Tx_Sprites_Utility_Sprite extends t3lib_stdGraphic{
 			
 			$this->images[$key] = $image;
 			
-			if(TX_SPRITES_DEBUG){
-				t3lib_div::devLog('Added image to sprite "'.$this->id.'"','sprites',t3lib_div::SYSLOG_SEVERITY_INFO,$image);
-			}
+			if(TX_SPRITES_DEBUG){t3lib_div::devLog('Added image to sprite "'.$this->id.'"','sprites',t3lib_div::SYSLOG_SEVERITY_INFO,$image);}
 			
 		} else {
 			
-			if(TX_SPRITES_DEBUG){
-				t3lib_div::devLog('Image "'.$file.'" has already been registered','sprites',t3lib_div::SYSLOG_SEVERITY_INFO,$image);
-			}	
+			if(TX_SPRITES_DEBUG){t3lib_div::devLog('Image "'.$file.'" has already been registered','sprites',t3lib_div::SYSLOG_SEVERITY_INFO,$image);}	
 		}
 		
 		return $key;
 	}
+
+	/**
+	 * Returns a named directive or one of it's alias's
+	 * 
+	 * @param	string
+	 * @param	array
+	 */
+	private function getDirective($key,$directives,$defval = null){
+		
+		if(isset($directives[$key])) return $directives[$key];
+		
+		if(isset($this->directiveAliases[$key])){
+			foreach($this->directiveAliases[$key] as $altkey){
+				if(isset($directives[$altkey])) return $directives[$altkey];				
+			}			
+		}
+		
+		if(!is_null($defval)) return $defval;
+	}
+
 	
 	/**
 	 * Returns the absolute path of the sprite image
@@ -397,7 +546,23 @@ class Tx_Sprites_Utility_Sprite extends t3lib_stdGraphic{
 			$this->copyGifOntoGif($im, $cpImg, $conf, $workArea);
 			imageDestroy($cpImg);
 		}
-	}	
+	}
+	
+	public function getImageKeys(){
+		return array_keys($this->images);
+	}
+	
+	public function getImage($key){
+		return $this->images[$key];
+	}
+	
+	public function getImageCount(){
+		return count($this->images);
+	}
+	
+	public function getId(){
+		return $this->id;		
+	}
 	
 }
 
